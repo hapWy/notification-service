@@ -1,0 +1,222 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Notification Service API",
+    "description": "Отправка уведомлений пользователям в Telegram через API. См. README для общего описания архитектуры.",
+    "version": "1.0.0"
+  },
+  "servers": [
+    { "url": "/" }
+  ],
+  "security": [
+    { "ApiKeyAuth": [] }
+  ],
+  "tags": [
+    { "name": "health", "description": "Проверка состояния сервиса" },
+    { "name": "notifications", "description": "Создание уведомлений и проверка статуса доставки" },
+    { "name": "templates", "description": "Шаблоны сообщений" }
+  ],
+  "paths": {
+    "/health": {
+      "get": {
+        "summary": "Health check",
+        "tags": ["health"],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Сервис работает",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HealthResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/notifications": {
+      "post": {
+        "summary": "Создать уведомление",
+        "description": "Регистрирует (при необходимости) пользователя по telegram_id, резолвит шаблон по имени, создаёт уведомление со статусом pending и публикует его в очередь на отправку воркеру.",
+        "tags": ["notifications"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CreateNotificationRequest" }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Уведомление создано и поставлено в очередь",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Notification" } }
+            }
+          },
+          "400": {
+            "description": "Некорректный запрос",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
+          },
+          "404": {
+            "description": "Шаблон с таким именем не найден",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
+          },
+          "500": {
+            "description": "Внутренняя ошибка сервиса",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
+          }
+        }
+      }
+    },
+    "/api/v1/notifications/{id}": {
+      "get": {
+        "summary": "Получить статус уведомления",
+        "tags": ["notifications"],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "id уведомления, возвращённый при создании",
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Notification" } } }
+          },
+          "404": {
+            "description": "Уведомление не найдено",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
+          },
+          "500": {
+            "description": "Внутренняя ошибка сервиса",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
+          }
+        }
+      }
+    },
+    "/api/v1/templates": {
+      "post": {
+        "summary": "Создать шаблон",
+        "tags": ["templates"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/CreateTemplateRequest" } }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Шаблон создан",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Template" } } }
+          },
+          "400": {
+            "description": "Некорректный запрос",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
+          },
+          "500": {
+            "description": "Внутренняя ошибка сервиса",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
+          }
+        }
+      },
+      "get": {
+        "summary": "Список шаблонов",
+        "tags": ["templates"],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/Template" }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Внутренняя ошибка сервиса",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "ApiKeyAuth": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-API-Key",
+        "description": "Требуется только если задан app.api_key / APP_API_KEY. Пусто по умолчанию — auth отключён."
+      }
+    },
+    "schemas": {
+      "HealthResponse": {
+        "type": "object",
+        "properties": {
+          "service": { "type": "string", "example": "notification-service" },
+          "status": { "type": "string", "example": "ok" },
+          "env": { "type": "string", "example": "development" }
+        }
+      },
+      "CreateNotificationRequest": {
+        "type": "object",
+        "required": ["telegram_id", "template"],
+        "properties": {
+          "telegram_id": { "type": "integer", "format": "int64", "example": 123456789 },
+          "template": { "type": "string", "example": "welcome" },
+          "params": {
+            "type": "object",
+            "additionalProperties": true,
+            "example": { "name": "Алиса" }
+          }
+        }
+      },
+      "CreateTemplateRequest": {
+        "type": "object",
+        "required": ["name", "body"],
+        "properties": {
+          "name": { "type": "string", "example": "welcome" },
+          "body": { "type": "string", "example": "Привет, {{.name}}! Добро пожаловать." }
+        }
+      },
+      "Notification": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "user_id": { "type": "string", "format": "uuid" },
+          "template_id": { "type": "string", "format": "uuid" },
+          "status": {
+            "type": "string",
+            "enum": ["pending", "processing", "sent", "delivered", "failed"]
+          },
+          "params": { "type": "object", "additionalProperties": true },
+          "error_message": { "type": "string", "nullable": true },
+          "created_at": { "type": "string", "format": "date-time" },
+          "updated_at": { "type": "string", "format": "date-time" }
+        }
+      },
+      "Template": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "name": { "type": "string" },
+          "body": { "type": "string" },
+          "created_at": { "type": "string", "format": "date-time" },
+          "updated_at": { "type": "string", "format": "date-time" }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "error": { "type": "string" }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,15 @@
+# Ignore environment variable files
+.env
+.env.local
+.env.*.local
+
+# OS / editor junk
+.DS_Store
+
+# Local scratch/diagnostic output
+*.log
+
+# Compiled binaries (in case someone runs `go build -o ...` locally)
+/server
+/migrate
+/notification-service

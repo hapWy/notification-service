@@ -3,14 +3,21 @@ app:
   host: "0.0.0.0"
   grpc_port: 50051
   http_port: 8080
-  env: "development"  
+  env: "development"
+  # Required as the X-API-Key header on /api/v1/* once set (via
+  # APP_API_KEY). Leave empty for local development.
+  api_key: ""
 
 database:
   host: "localhost"
   port: 5432
-  user: "postgres"
-  password: "postgres"
-  name: "notification_db"
+  # user/password/name below are placeholders — actual values come from
+  # POSTGRES_USER / POSTGRES_PASSWORD / POSTGRES_DB (see .env / .env.example;
+  # config.Load reads .env automatically for local `go run`, docker-compose
+  # injects them directly).
+  user: ""
+  password: ""
+  name: ""
   sslmode: "disable"
   max_open_conns: 25
   max_idle_conns: 5
@@ -18,15 +25,16 @@ database:
 redis:
   host: "localhost"
   port: 6379
+  # actual value comes from REDIS_PASSWORD, see note above
   password: ""
   db: 0
   stream_name: "notifications"
   consumer_group: "workers"
 
 telegram:
-  bot_token: "${TELEGRAM_BOT_TOKEN}"      
-  chat_ids:
-    - 123456789
+  # actual value comes from TELEGRAM_BOT_TOKEN, see note above
+  bot_token: ""
+  chat_ids: []
   timeout_seconds: 30
 
 sse:
